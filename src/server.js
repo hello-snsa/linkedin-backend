@@ -1,28 +1,25 @@
-//for establising connection
+require('dotenv').config();
 const express = require('express');
 
-//to connect with database
-const connect = require("./configs/db");
-//
-const userController = require("./controllers/user.controller");
-//
+const connect = require('./configs/db');
+
 const app = express();
 
 //middleware express.json()
 app.use(express.json());
-//
-// Writing base route as a middleware
-// app.use("/users", userController);
-app.use("/users", userController);
 
 //for 404 routing *note: put this as the last route
 app.use(function (req, res, next) {
-    return res.status(404).send("No route found")
+  return res.status(404).send('No route found');
 });
 
+const PORT = process.env.PORT || 8080;
 
-app.listen(2244, async () => {
-
+app.listen(PORT, async () => {
+  try {
     await connect();
-    console.log("Listening at port 2244")
+    console.log('Server started');
+  } catch (e) {
+    console.log('Error while starting server...');
+  }
 });
