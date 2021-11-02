@@ -115,7 +115,8 @@ router.get("/getAllUsers", async (req, res) => {
     } catch (err) {
         return res.status(400).json({ status: "failed", message: err.message });
     }
-})
+});
+
 
 
 router.get("/signin", protect, async (req, res) => {
