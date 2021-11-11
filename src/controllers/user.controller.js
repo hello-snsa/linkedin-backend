@@ -2,6 +2,8 @@ const fs = require('fs');
 const express = require("express");
 
 const User = require("../models/user.model");
+const protect = require('../middlewares/protect');
+
 const { body, validationResult } = require('express-validator');
 const router = express.Router();
 
@@ -49,6 +51,18 @@ router.get("/getAllUsers", async (req, res) => {
 });
 
 //Put Routing
+router.patch('/', protect, async (req, res) => {
+    try {
+        const user = await User.findByIdAndUpdate(req.params.id, req.body, {
+            new: true,
+        }).select('-password');
+
+        return res.status(200).json({ user: user });
+    } catch (e) {
+        return res.status(400).json({ error: e });
+    }
+});
+
 
 //Delete Routing
 
