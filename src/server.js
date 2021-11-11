@@ -10,6 +10,7 @@ app.use(express.json());
 
 
 const userController = require("./controllers/user.controller");
+const profileController = require("./controllers/profile.controller");
 
 
 
@@ -17,6 +18,7 @@ const userController = require("./controllers/user.controller");
 
 //USER routing
 app.use("/user", userController);
+app.use("/profile", profileController);
 
 
 
