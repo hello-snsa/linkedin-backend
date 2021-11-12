@@ -1,39 +1,89 @@
 require('dotenv').config();
-const express = require('express');
 
-const connect = require('./configs/db');
+const { Server } = require('socket.io');
+const express = require('express');
+const http = require('http');
+const cors = require('cors');
+const {cloudinary} =require('./configs/cloudinary.config')
 
 const app = express();
+const server = http.createServer(app);
 
-//middleware express.json()
+/* Configuration Files */
+const connect = require('./configs/db.config');
+
+/* Middlewares */
 app.use(express.json());
+app.use(express.static("public"));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+/* Controllers */
+const authController = require('./controllers/auth.controller');
+const userController = require('./controllers/user.controller');
+const postController = require('./controllers/post.controller');
+const commentController = require('./controllers/comment.controller');
+const likeController = require('./controllers/like.controller');
+const replyController = require('./controllers/reply.controller');
+const notificationController = require('./controllers/notification.controller');
+const conversationController = require('./controllers/conversation.controller');
 
-const userController = require("./controllers/user.controller");
-const profileController = require("./controllers/profile.controller");
+/* Utility files */
+const messengerSocket = require('./utils/messenger.socket');
 
+/* Configuring socket io */
+const io = new Server(server, {
+  cors: {
+    origin: ['*', 'http://localhost:3000', 'http://localhost:8080'], // add routes where cors should be enabled
+  },
+});
 
+/* Enable cors for socket io */
+app.use(cors());
 
-//Routing
+app.post("/api/upload", async (req, res) => {
+  try {
+    const fileStr = req.body.data;
+    const uploadResponse = await cloudinary.uploader.upload(fileStr);
+    console.log(uploadResponse);
+    res.status(201).json({ msg: "Success", url: uploadResponse.secure_url });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ err: "Something went wrong" });
+  }
+});
 
-//USER routing
-app.use("/user", userController);
-app.use("/profile", profileController);
+/* Routes */
+app.use('/auth', authController);
+app.use('/users', userController);
+app.use('/posts', postController);
+app.use('/comments', commentController);
+app.use('/likes', likeController);
+app.use('/replies', replyController);
+app.use('/notification', notificationController);
+app.use('/conversation', conversationController);
 
-
-
-//for 404 routing *note: put this as the last route
+/* 404 routing  */
 app.use(function (req, res, next) {
   return res.status(404).send('No route found');
 });
 
+const onConnection = (socket) => {
+  console.log('socket.io established', socket.id);
+  messengerSocket(io, socket);
+};
+
 const PORT = process.env.PORT || 8080;
 
-app.listen(PORT, async () => {
+server.listen(PORT, async () => {
   try {
     await connect();
-    console.log('Server started at port: ', PORT);
-  } catch (err) {
-    console.log('Error while starting server... ' + err);
+    
+    /* Socket.io connection */
+    io.on('connection', onConnection);
+
+    console.log('Server started...', PORT);
+  } catch (e) {
+    console.log('Server disconnected!');
   }
 });
