@@ -19,6 +19,8 @@ const userSchema = mongoose.Schema(
     connections: [{ type: mongoose.Schema.Types.ObjectId, ref: 'user' }],
     recommendations: [{ type: mongoose.Schema.Types.ObjectId, ref: 'user' }],
     organization: { type: String },
+    description: { type: String },
+    cover_img: {type: String}
   },
   {
     versionKey: false,

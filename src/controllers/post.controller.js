@@ -11,6 +11,7 @@ router.get('/', async (req, res) => {
   try {
     const posts = await Posts.find()
       .populate('user')
+      .sort('-createdAt')
       .lean()
       .exec();
     return res.status(200).json({ posts: posts });
@@ -22,7 +23,8 @@ router.get('/', async (req, res) => {
 /* Create A New Post */
 router.post('/', protect, async (req, res) => {
   try {
-    const post = await Posts.create({ ...req.body, user: req.user.id }).populate('user');
+    const post = await Posts.create({ ...req.body, user: req.user.id });
+    console.log('post: ', post);
     return res.status(201).json({ post: post });
   } catch (e) {
     return res.status(400).json({ error: e });

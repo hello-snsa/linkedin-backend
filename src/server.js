@@ -4,7 +4,7 @@ const { Server } = require('socket.io');
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
-const {cloudinary} =require('./configs/cloudinary.config')
+const { cloudinary } = require('./configs/cloudinary.config');
 
 const app = express();
 const server = http.createServer(app);
@@ -13,10 +13,13 @@ const server = http.createServer(app);
 const connect = require('./configs/db.config');
 
 /* Middlewares */
-app.use(express.json());
-app.use(express.static("public"));
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use(express.static('public'));
+app.use(express.json({ limit: '200mb' }));
+app.use(express.urlencoded({ limit: '200mb', extended: true }));
+app.use(express.text({ limit: '200mb' }));
+
+/* Enable cors for socket io */
+app.use(cors());
 
 /* Controllers */
 const authController = require('./controllers/auth.controller');
@@ -38,18 +41,15 @@ const io = new Server(server, {
   },
 });
 
-/* Enable cors for socket io */
-app.use(cors());
-
-app.post("/api/upload", async (req, res) => {
+app.post('/api/upload', async (req, res) => {
   try {
     const fileStr = req.body.data;
     const uploadResponse = await cloudinary.uploader.upload(fileStr);
     console.log(uploadResponse);
-    res.status(201).json({ msg: "Success", url: uploadResponse.secure_url });
+    res.status(201).json({ msg: 'Success', url: uploadResponse.secure_url });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ err: "Something went wrong" });
+    res.status(500).json({ err: 'Something went wrong' });
   }
 });
 
@@ -78,7 +78,7 @@ const PORT = process.env.PORT || 8080;
 server.listen(PORT, async () => {
   try {
     await connect();
-    
+
     /* Socket.io connection */
     io.on('connection', onConnection);
 
