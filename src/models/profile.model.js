@@ -1,14 +1,18 @@
-// 1: create schema
-// 2. creating the model
+const mongoose = require('mongoose');
 
-const mongoose = require("mongoose");
-
-// creating schema
+//creating schema
 const profileSchema = new mongoose.Schema({
 
-    title: { type: String, required: true },
-    demo: { type: Number, required: true },
-    image_urls: [{ type: String, required: true }],
+    //schema for profile page
+    // coverPic: { type: String, required: false },
+    headline: { type: String, required: false },
+    about: { type: String, required: false },
+    featured: { type: Array, required: false },
+    activities: { type: Array, required: false },
+    experience: { type: Array, required: false },
+    education: { type: Array, required: false },
+    endorsement: { type: Array, required: false },
+    interests: { type: Array, required: false },
 
 }, {
     versionKey: false,
@@ -16,9 +20,5 @@ const profileSchema = new mongoose.Schema({
 });
 
 
-// 2. creating the model
-// const schema = mongoose.model("user", userSchema);
-
-// module.exports = schema;
-
 module.exports = mongoose.model("profile", profileSchema);
+
