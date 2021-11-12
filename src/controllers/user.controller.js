@@ -1,74 +1,277 @@
-const fs = require('fs');
-const express = require("express");
-
-const User = require("../models/user.model");
-const protect = require('../middlewares/protect');
-
-const { body, validationResult } = require('express-validator');
+const express = require('express');
 const router = express.Router();
 
-//Post Routing
-router.post("/newuser",
+const User = require('../models/user.model');
+const Posts = require('../models/post.model');
 
-    body("email").isEmail().withMessage("please enter valid email"),
-    body("password").isLength({ min: 8 }).withMessage("please enter 8 digit password"),
-    body("phone").isLength({ min: 10, max: 10 }).withMessage("please enter 10 digit mobile number"),
-    body("first_name").isLength({ min: 2 }).withMessage("please enter valid first name"),
-    body("last_name").isLength({ min: 2 }).withMessage("please enter valid last name"),
+const protect = require('../middlewares/protect');
+const generateRecommendations = require('../utils/generateRecommendations');
 
-    async (req, res) => {
+/* Getting all users */
+router.get('/', async (req, res) => {
+  try {
+    const users = await User.find(
+      {},
+      { phone: 0, password: 0, createdAt: 0, updatedAt: 0 }
+    )
+      .lean()
+      .exec();
+    return res.status(200).json({ users: users });
+  } catch (error) {
+    return res.status(400).json({ error: error });
+  }
+});
 
-        try {
-            const user = await User.create(req.body);
+/* Creating new user */
+// router.post('/', async (req, res) => {
+//   try {
+//     const user = await User.create(req.body);
+//     return res.status(201).json({ user: user });
+//   } catch (e) {
+//     return res.status(400).json({ error: e });
+//   }
+// });
 
-            return res.status(201).json({ user: user })
+/* Getting all posts of a user */
+router.get('/posts', protect, async (req, res) => {
+  try {
+    const posts = await Posts.find({ user: req.user.id }).lean().exec();
+    return res.status(200).json({ posts: posts });
+  } catch (e) {
+    return res.status(400).json({ error: e });
+  }
+});
 
-        } catch (err) {
-            return res.status(400).json({ status: "failed", message: err.message });
-        }
+/* For changing socketID using email address */
+router.patch('/changeSocket', async (req, res) => {
+  try {
+    const user = await User.findOneAndUpdate(
+      { email: req.body.email },
+      { socketId: req.body.socketId },
+      { new: true }
+    );
+    return res.status(200).json({ user: user });
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+});
+
+/* Get All Connections */
+router.get('/connections', protect, async (req, res) => {
+  try {
+    const { connections } = await User.findById(req.user.id, {
+      _id: 0,
+      connections: 1,
+    })
+      .lean()
+      .exec();
+    return res
+      .status(200)
+      .json({ connections: connections, count: connections.length });
+  } catch (e) {
+    return res.status(400).json({ error: e });
+  }
+});
+
+/* Removing a connection */
+router.patch('/connections', protect, async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      {
+        $pull: { connections: req.body.id },
+      },
+      { new: true }
+    )
+      .lean()
+      .exec();
+    return res.status(200).json({ user: user });
+  } catch (e) {
+    return res.status(400).json({ error: e });
+  }
+});
+
+/* Getting all pending requests */
+router.get('/pending-requests', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id, {
+      pendingReceived: 1,
+      pendingSent: 1,
+    })
+      .lean()
+      .exec();
+    return res.status(200).json({ user: user });
+  } catch (e) {
+    return res.status(400).json({ error: e });
+  }
+});
+
+/* Sending request to a user */
+router.post('/send-request', protect, async (req, res) => {
+  try {
+    // Don't send if both id's are same
+    if (req.user.id === req.body.id) {
+      return res.status(400).json({ error: "Can't send request to yourself" });
+    }
+    /* Check if user exists */
+    let receiver = await User.findById(req.body.id, { _id: 1 }).lean();
+    if (!receiver) {
+      return res.status(400).json({ error: "User doesn't exists" });
+    }
+
+    /* Add to your pending list */
+    const sender = await User.findByIdAndUpdate(
+      req.user.id,
+      {
+        $addToSet: { pendingSent: receiver },
+      },
+      { new: true }
+    ).select(['-createdAt', '-updatedAt', '-password', '-phone']);
+
+    receiver = await User.findByIdAndUpdate(
+      req.body.id,
+      {
+        $addToSet: { pendingReceived: sender },
+      },
+      { new: true }
+    ).select(['-createdAt', '-updatedAt', '-password', '-phone']);
+
+    return res.status(201).json({
+      sender: sender,
+      receiver: receiver,
+      message: 'Request sent successfully!',
     });
-
-//Get Routing
-router.get("/getAllUsers", async (req, res) => {
-
-    try {
-        //Adding pagination
-        const page = +req.query.page || 1;
-        const size = +req.query.size || 4;
-
-        const offset = (page - 1) * size;
-
-        const users = await User.find().skip(offset).limit(size).lean().exec();
-
-        //Getting total no. of documents
-        const totalPages = Math.ceil((await User.find().countDocuments()) / size);
-
-        return res.status(200).json({ users: users, totalPages });
-
-    } catch (err) {
-        return res.status(400).json({ status: "failed", message: err.message });
-    }
+  } catch (e) {
+    return res
+      .status(400)
+      .json({ error: e, message: 'Error while sending request!' });
+  }
 });
 
-//Put Routing
-router.patch('/', protect, async (req, res) => {
-    try {
-        const user = await User.findByIdAndUpdate(req.params.id, req.body, {
-            new: true,
-        }).select('-password');
+/* Accept connection request */
+router.post('/accept-request', protect, async (req, res) => {
+  try {
+    // check if user exists
+    const user = await User.findByIdAndUpdate(
+      req.body.id,
+      {
+        $pull: { pendingSent: req.user.id },
+        $addToSet: { connections: req.user.id },
+        $pull: { recommendations: req.user.id },
+      },
+      { new: true }
+    ).select(['-createdAt', '-updatedAt', '-password', '-phone']);
 
-        return res.status(200).json({ user: user });
+    if (!user) {
+      return res.status(400).json({ message: "User doesn't exists anymore!" });
+    }
+
+    let receiver = await User.findByIdAndUpdate(
+      req.user.id,
+      {
+        $addToSet: { connections: user._id },
+        $pull: { pendingReceived: user._id },
+        $pull: { recommendations: user._id },
+      },
+      { new: true }
+    ).select(['-createdAt', '-updatedAt', '-password', '-phone']);
+
+    // Generating new connections recommendations
+    try {
+      const newRecommendations = Array.from(
+        await generateRecommendations(receiver, user)
+      );
+      receiver = await User.findByIdAndUpdate(
+        req.user.id,
+        {
+          $addToSet: { recommendations: newRecommendations },
+        },
+        { new: true }
+      );
     } catch (e) {
-        return res.status(400).json({ error: e });
+      return res
+        .status(400)
+        .json({ error: 'Error while getting recommendation' });
     }
+
+    return res.status(200).json({
+      receiver: receiver,
+      sender: user,
+      message: 'Connected!',
+    });
+  } catch (e) {
+    return res.status(400).json({ error: e });
+  }
 });
 
+/* Get recommendations */
+router.get('/recommendations', protect, async (req, res) => {
+  try {
+    let user = await User.findById(req.user.id, {
+      email: 1,
+      connections: 1,
+      recommendations: 1,
+    })
+      .lean()
+      .exec();
 
-//Delete Routing
+    const newRecommendations = Array.from(await generateRecommendations(user));
+    const users = await User.find(
+      { _id: { $in: newRecommendations } },
+      { password: 0 }
+    )
+      .lean()
+      .exec();
+    // await generateRecommendations(user);
+    return res.status(200).json({ recommendations: users });
+  } catch (e) {
+    return res.status(400).json({ error: e });
+  }
+});
 
+/* Getting single user */
+router.get('/email/:email', async (req, res) => {
+  try {
+    const user = await User.findOne({ email: req.params.email }).populate('connections').lean().exec();
+    return res.status(200).json({ user: user });
+  } catch (e) {
+    return res.status(400).json({ error: e });
+  }
+});
 
+/* Getting single user */
+router.get('/:id', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).exec();
+    return res.status(200).json({ user: user });
+  } catch (e) {
+    return res.status(400).json({ error: e });
+  }
+});
 
+/* Updating single user */
+router.patch('/:id', protect, async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+    }).select('-password');
 
+    return res.status(200).json({ user: user });
+  } catch (e) {
+    return res.status(400).json({ error: e });
+  }
+});
+
+/* Deleting a user */
+router.delete('/:id', async (req, res) => {
+  try {
+    const user = await User.findByIdAndRemove(req.params.id).select(
+      '-password'
+    );
+    return res.status(201).json({ user: user });
+  } catch (e) {
+    return res.status(400).json({ error: e });
+  }
+});
 
 module.exports = router;
-
