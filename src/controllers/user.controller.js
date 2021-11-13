@@ -97,12 +97,12 @@ router.patch('/connections', protect, async (req, res) => {
 router.get('/pending-requests', protect, async (req, res) => {
   try {
     const user = await User.findById(req.user.id, {
-      pendingReceived: 1,
-      pendingSent: 1,
+      password: 0,
     })
       .populate(['pendingReceived', 'pendingSent'])
       .lean()
       .exec();
+    console.log("pending: ", user);
     return res.status(200).json({ user: user });
   } catch (e) {
     return res.status(400).json({ error: e });
@@ -277,7 +277,7 @@ router.get('/recommendations', protect, async (req, res) => {
 router.get('/email/:email', async (req, res) => {
   try {
     const user = await User.findOne({ email: req.params.email })
-      .populate(['connections', 'pendingReceived'])
+      .populate(['connections', 'pendingReceived', 'pendingSent'])
       .lean()
       .exec();
     return res.status(200).json({ user: user });

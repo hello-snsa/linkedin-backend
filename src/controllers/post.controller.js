@@ -31,6 +31,17 @@ router.post('/', protect, async (req, res) => {
   }
 });
 
+router.get('/post/all/:postID', async (req, res) => {
+  try {
+    const post = await Posts.findById(req.params.postID).populate('user').lean().exec();
+    const comments = await Comments.find({ post: req.params.postID }).populate('user').lean().exec();
+    const likes = await Likes.find({ post: req.params.postID }).populate('user').lean().exec();
+    return res.status(200).json({ post: post, comments: comments, likes: likes });
+  } catch (e) {
+    return res.status(500).json({ error: e });
+  }
+})
+
 /* Get Single Post */
 router.get('/:id', protect, async (req, res) => {
   try {
@@ -40,6 +51,7 @@ router.get('/:id', protect, async (req, res) => {
     return res.status(400).json({ error: e });
   }
 });
+
 
 /* Update A Post */
 router.patch('/:id', protect, async (req, res) => {

@@ -18,6 +18,15 @@ router.get('/', async (req, res) => {
   }
 });
 
+router.get('/post/:postID', async (req, res) => {
+  try {
+    const allLikes = await Likes.find({ post: req.params.postID }).populate('post').lean().exec();
+    return res.status(200).json({ likes: allLikes, total: allLikes.length });
+  } catch (e) {
+    return res.status(500).json({ error: e, message: 'Error while getting all likes of post' });
+  }
+})
+
 /* Create A New Like */
 router.post('/', async (req, res) => {
   try {
