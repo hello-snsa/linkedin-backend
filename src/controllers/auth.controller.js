@@ -16,7 +16,9 @@ router.post('/register', async (req, res) => {
     user = user.toJSON();
     delete user.password;
     const token = await generateToken(user);
-    return res.status(201).json({ token: token, email: user?.email, id: user?._id });
+    return res
+      .status(201)
+      .json({ token: token, email: user?.email, id: user?._id });
   } catch (e) {
     return res.status(400).json({ error: e });
   }
@@ -49,7 +51,9 @@ router.post('/login', async (req, res) => {
   }
 
   const token = generateToken(user);
-  return res.status(201).json({ token: token, email: user?.email, id: user?._id });
-})
+  return res
+    .status(201)
+    .json({ token: token, email: user?.email, id: user?._id });
+});
 
 module.exports = router;

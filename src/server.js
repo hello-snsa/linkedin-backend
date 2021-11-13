@@ -30,6 +30,7 @@ const likeController = require('./controllers/like.controller');
 const replyController = require('./controllers/reply.controller');
 const notificationController = require('./controllers/notification.controller');
 const conversationController = require('./controllers/conversation.controller');
+const profileController = require('./controllers/profile.controller');
 
 /* Utility files */
 const messengerSocket = require('./utils/messenger.socket');
@@ -62,6 +63,7 @@ app.use('/likes', likeController);
 app.use('/replies', replyController);
 app.use('/notification', notificationController);
 app.use('/conversation', conversationController);
+app.use('/profile', profileController);
 
 /* 404 routing  */
 app.use(function (req, res, next) {

@@ -10,7 +10,7 @@ module.exports = (io, socket) => {
         receiver,
         message,
       })
-      .then(({ data }) => {
+      .then(({ data }) => { 
         console.log("data: ", data);
         io.to(data.fromID).emit('receive-message', data?.conversation);
         io.to(data.toID).emit('receive-message', data?.conversation);

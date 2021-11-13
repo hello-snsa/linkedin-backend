@@ -6,7 +6,10 @@ const router = express.Router();
 
 router.get('/', protect, async (req, res) => {
   try {
-    const conversations = await Conversation.find().lean().exec();
+    const conversations = await Conversation.find()
+      .populate(['sender', 'receiver'])
+      .lean()
+      .exec();
 
     return res.status(200).json({ messages: conversations });
   } catch (error) {
@@ -28,8 +31,8 @@ router.get('/connections', protect, async (req, res) => {
           ],
         })
           .populate([
-            { path: 'sender', select: { first_name: 1, last_name: 1 } },
-            { path: 'receiver', select: { first_name: 1, last_name: 1 } },
+            { path: 'sender', select: { first_name: 1, last_name: 1, profile_img: 1 } },
+            { path: 'receiver', select: { first_name: 1, last_name: 1, profile_img: 1 } },
           ])
           .select(['-password'])
           .sort('createdAt')
@@ -67,18 +70,24 @@ router.post('/', async (req, res) => {
       throw new Error('Please check emails!');
     }
 
-    
     let conversation = await Conversation.create({
       sender: senderData._id,
       receiver: receiverData._id,
       message: message,
-    })
-    
-    const convo = await Conversation.findById(conversation._id).populate(['sender', 'receiver']).lean().exec();
+    });
+
+    const convo = await Conversation.findById(conversation._id)
+      .populate(['sender', 'receiver'])
+      .lean()
+      .exec();
 
     return res
       .status(201)
-      .json({ conversation: convo, toID: receiverData?.socketId, fromID: senderData?.socketId });
+      .json({
+        conversation: convo,
+        toID: receiverData?.socketId,
+        fromID: senderData?.socketId,
+      });
   } catch (err) {
     return res.status(400).json({ err: err.message });
   }

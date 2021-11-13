@@ -24,8 +24,8 @@ router.get('/', async (req, res) => {
 router.post('/', protect, async (req, res) => {
   try {
     const post = await Posts.create({ ...req.body, user: req.user.id });
-    console.log('post: ', post);
-    return res.status(201).json({ post: post });
+    const newPost = await Posts.findById(post._id).populate('user');
+    return res.status(201).json({ post: newPost });
   } catch (e) {
     return res.status(400).json({ error: e });
   }

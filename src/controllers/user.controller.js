@@ -7,6 +7,8 @@ const Posts = require('../models/post.model');
 const protect = require('../middlewares/protect');
 const generateRecommendations = require('../utils/generateRecommendations');
 
+const ObjectId = require('mongoose').Types.ObjectId;
+
 /* Getting all users */
 router.get('/', async (req, res) => {
   try {
@@ -98,6 +100,7 @@ router.get('/pending-requests', protect, async (req, res) => {
       pendingReceived: 1,
       pendingSent: 1,
     })
+      .populate(['pendingReceived', 'pendingSent'])
       .lean()
       .exec();
     return res.status(200).json({ user: user });
@@ -149,32 +152,61 @@ router.post('/send-request', protect, async (req, res) => {
 });
 
 /* Accept connection request */
-router.post('/accept-request', protect, async (req, res) => {
+router.patch('/accept-request', protect, async (req, res) => {
   try {
+    console.log('id: ', req.user);
     // check if user exists
-    const user = await User.findByIdAndUpdate(
+    const user = await User.findOneAndUpdate(
       req.body.id,
       {
-        $pull: { pendingSent: req.user.id },
-        $addToSet: { connections: req.user.id },
-        $pull: { recommendations: req.user.id },
+        $pull: { pendingReceived: { _id: req.user.id } },
+        $pull: { pendingSent: { _id: req.user.id } },
+        $pull: { recommendations: { _id: req.user.id } },
+        $addToSet: { connections: { _id: req.user.id } },
       },
       { new: true }
-    ).select(['-createdAt', '-updatedAt', '-password', '-phone']);
+    ).select([
+      '-createdAt',
+      '-updatedAt',
+      '-password',
+      '-phone',
+      '-description',
+      '-about',
+      '-endorsements',
+      '-education',
+      '-certifications',
+      '-interests',
+      '-activity',
+    ]);
+    console.log('me: ', user);
 
     if (!user) {
       return res.status(400).json({ message: "User doesn't exists anymore!" });
     }
 
-    let receiver = await User.findByIdAndUpdate(
+    let receiver = await User.findOneAndUpdate(
       req.user.id,
       {
-        $addToSet: { connections: user._id },
-        $pull: { pendingReceived: user._id },
-        $pull: { recommendations: user._id },
+        $addToSet: { connections: { _id: user._id } },
+        $pull: { pendingReceived: { _id: user._id } },
+        $pull: { pendingSent: { _id: user._id } },
+        $pull: { recommendations: { _id: user._id } },
       },
       { new: true }
-    ).select(['-createdAt', '-updatedAt', '-password', '-phone']);
+    ).select([
+      '-createdAt',
+      '-updatedAt',
+      '-password',
+      '-phone',
+      '-description',
+      '-about',
+      '-endorsements',
+      '-education',
+      '-certifications',
+      '-interests',
+      '-activity',
+    ]);
+    console.log('friend', receiver);
 
     // Generating new connections recommendations
     try {
@@ -187,7 +219,19 @@ router.post('/accept-request', protect, async (req, res) => {
           $addToSet: { recommendations: newRecommendations },
         },
         { new: true }
-      );
+      ).select([
+        '-createdAt',
+        '-updatedAt',
+        '-password',
+        '-phone',
+        '-description',
+        '-about',
+        '-endorsements',
+        '-education',
+        '-certifications',
+        '-interests',
+        '-activity',
+      ]);
     } catch (e) {
       return res
         .status(400)
@@ -232,7 +276,10 @@ router.get('/recommendations', protect, async (req, res) => {
 /* Getting single user */
 router.get('/email/:email', async (req, res) => {
   try {
-    const user = await User.findOne({ email: req.params.email }).populate('connections').lean().exec();
+    const user = await User.findOne({ email: req.params.email })
+      .populate(['connections', 'pendingReceived'])
+      .lean()
+      .exec();
     return res.status(200).json({ user: user });
   } catch (e) {
     return res.status(400).json({ error: e });

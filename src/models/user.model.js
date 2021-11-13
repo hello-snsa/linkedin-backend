@@ -20,7 +20,62 @@ const userSchema = mongoose.Schema(
     recommendations: [{ type: mongoose.Schema.Types.ObjectId, ref: 'user' }],
     organization: { type: String },
     description: { type: String },
-    cover_img: {type: String}
+    cover_img: { type: String },
+    about: { type: String },
+    profile_views: { type: String },
+    posts_views: { type: String },
+    search_appearances: { type: String },
+    activity: [
+      {
+        title: { type: String },
+        post: { type: mongoose.Schema.Types.ObjectId, req: true, ref: 'post' },
+        who: { type: String },
+        what: { type: String },
+      },
+    ],
+    experience: [
+      {
+        title: String,
+        company: String,
+        purpose: String,
+        start: String,
+        end: String,
+        location: String,
+        tasks: [{ type: String }],
+      },
+    ],
+    education: [
+      {
+        institution: String,
+        course: String,
+        start: String,
+        end: String,
+        tasks: [{ type: String }],
+      },
+    ],
+    certifications: [
+      {
+        logo: String,
+        course: String,
+        company: String,
+        issued: String,
+        expiration: String,
+        url: String,
+      },
+    ],
+    endorsements: [
+      {
+        title: { type: String },
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'user' },
+      },
+    ],
+    interests: [
+      {
+        logo: { type: String },
+        company: { type: String },
+        followers: { type: String },
+      },
+    ],
   },
   {
     versionKey: false,
