@@ -19,9 +19,11 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/posts/:postId', protect,  async (req, res) => {
+router.get('/posts/:postId', protect, async (req, res) => {
   try {
-    const comments = await Comments.find({ post: req.params.postId }).lean().exec();
+    const comments = await Comments.find({ post: req.params.postId })
+      .lean()
+      .exec();
     return res.status(200).json({ comments: comments });
   } catch (e) {
     return res.status(400).json({ error: e });
@@ -31,8 +33,17 @@ router.get('/posts/:postId', protect,  async (req, res) => {
 /* Create A New Comment */
 router.post('/', protect, async (req, res) => {
   try {
-    const comment = await Comments.create({...req.body, user: req.user.id});
-    return res.status(201).json({ comment: comment });
+    const comment = await Comments.create({
+      ...req.body,
+      user: req.user.id,
+    });
+
+    const newComment = await Comments.findById(comment._id).populate([
+      'user',
+      'post',
+    ]);
+
+    return res.status(201).json({ comment: newComment });
   } catch (e) {
     return res.status(400).json({ error: e });
   }

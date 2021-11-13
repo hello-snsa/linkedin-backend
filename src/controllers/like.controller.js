@@ -20,12 +20,17 @@ router.get('/', async (req, res) => {
 
 router.get('/post/:postID', async (req, res) => {
   try {
-    const allLikes = await Likes.find({ post: req.params.postID }).populate('post').lean().exec();
+    const allLikes = await Likes.find({ post: req.params.postID })
+      .populate('post')
+      .lean()
+      .exec();
     return res.status(200).json({ likes: allLikes, total: allLikes.length });
   } catch (e) {
-    return res.status(500).json({ error: e, message: 'Error while getting all likes of post' });
+    return res
+      .status(500)
+      .json({ error: e, message: 'Error while getting all likes of post' });
   }
-})
+});
 
 /* Create A New Like */
 router.post('/', async (req, res) => {
@@ -34,6 +39,20 @@ router.post('/', async (req, res) => {
     return res.status(201).json({ likes: likes });
   } catch (e) {
     return res.status(400).json({ error: e });
+  }
+});
+
+router.patch('/', async (req, res) => {
+  try {
+    const like = await Likes.findOneAndUpdate(
+      { post: req.body.post, user: req.body.user },
+      req.body
+    ).populate(['user', 'post']);
+    return res.status(200).json({ like: like });
+  } catch (e) {
+    return res
+      .status(500)
+      .json({ error: e, message: 'Error while updating like' });
   }
 });
 

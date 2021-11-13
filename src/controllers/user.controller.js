@@ -102,7 +102,7 @@ router.get('/pending-requests', protect, async (req, res) => {
       .populate(['pendingReceived', 'pendingSent'])
       .lean()
       .exec();
-    console.log("pending: ", user);
+    console.log('pending: ', user);
     return res.status(200).json({ user: user });
   } catch (e) {
     return res.status(400).json({ error: e });
@@ -154,97 +154,50 @@ router.post('/send-request', protect, async (req, res) => {
 /* Accept connection request */
 router.patch('/accept-request', protect, async (req, res) => {
   try {
-    console.log('id: ', req.user);
-    // check if user exists
-    const user = await User.findOneAndUpdate(
-      req.body.id,
-      {
-        $pull: { pendingReceived: { _id: req.user.id } },
-        $pull: { pendingSent: { _id: req.user.id } },
-        $pull: { recommendations: { _id: req.user.id } },
-        $addToSet: { connections: { _id: req.user.id } },
-      },
-      { new: true }
-    ).select([
-      '-createdAt',
-      '-updatedAt',
-      '-password',
-      '-phone',
-      '-description',
-      '-about',
-      '-endorsements',
-      '-education',
-      '-certifications',
-      '-interests',
-      '-activity',
-    ]);
-    console.log('me: ', user);
-
-    if (!user) {
-      return res.status(400).json({ message: "User doesn't exists anymore!" });
-    }
-
-    let receiver = await User.findOneAndUpdate(
+    const me = await User.findByIdAndUpdate(
       req.user.id,
       {
-        $addToSet: { connections: { _id: user._id } },
-        $pull: { pendingReceived: { _id: user._id } },
-        $pull: { pendingSent: { _id: user._id } },
-        $pull: { recommendations: { _id: user._id } },
+        $pull: { pendingReceived: req.body.id },
+        $addToSet: { connections: req.body.id },
       },
       { new: true }
-    ).select([
-      '-createdAt',
-      '-updatedAt',
-      '-password',
-      '-phone',
-      '-description',
-      '-about',
-      '-endorsements',
-      '-education',
-      '-certifications',
-      '-interests',
-      '-activity',
-    ]);
-    console.log('friend', receiver);
+    );
+
+    let connection = await User.findByIdAndUpdate(
+      req.body.id,
+      {
+        $pull: { pendingSent: req.user.id },
+        $addToSet: { connections: req.user.id },
+      },
+      { new: true }
+    );
 
     // Generating new connections recommendations
     try {
       const newRecommendations = Array.from(
-        await generateRecommendations(receiver, user)
+        await generateRecommendations(me, connection)
       );
-      receiver = await User.findByIdAndUpdate(
+      let receiver = await User.findByIdAndUpdate(
         req.user.id,
         {
           $addToSet: { recommendations: newRecommendations },
         },
         { new: true }
-      ).select([
-        '-createdAt',
-        '-updatedAt',
-        '-password',
-        '-phone',
-        '-description',
-        '-about',
-        '-endorsements',
-        '-education',
-        '-certifications',
-        '-interests',
-        '-activity',
-      ]);
+      );
+      return res.status(200).json({
+        sender: connection,
+        receiver: receiver,
+        message: 'Accepted Request!',
+      });
     } catch (e) {
       return res
         .status(400)
         .json({ error: 'Error while getting recommendation' });
     }
-
-    return res.status(200).json({
-      receiver: receiver,
-      sender: user,
-      message: 'Connected!',
-    });
   } catch (e) {
-    return res.status(400).json({ error: e });
+    return res
+      .status(500)
+      .json({ error: e, message: 'Error while accepting request' });
   }
 });
 
